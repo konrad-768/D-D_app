@@ -1,0 +1,17 @@
+Файл character.py
+
+Напиши класс Character:
+
+Требования:
+
+имя
+
+здоровье (hp)
+
+атака (attack)
+
+защита (defense)
+
+метод take_damage(dmg) — уменьшает HP
+
+метод is_alive() — возвращает True/False
