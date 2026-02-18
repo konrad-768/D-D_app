@@ -20,7 +20,9 @@ class Character:
         else:
             return False
         
-    def attack_target(self, target):    
+    def take_damage(self, amount):
+        self.health -= amount
+        print(f"У {self.name} осталось {self.health} здоровья.")  
 
         
 

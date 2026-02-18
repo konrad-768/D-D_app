@@ -19,3 +19,7 @@ class Enemy:
             return True
         else:
             return False
+        
+    def take_damage(self, amount):
+        self.health -= amount
+        print(f"У {self.name} осталось {self.health} здоровья.")  
