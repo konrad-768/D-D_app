@@ -1,11 +1,12 @@
 import random
 
 class Unit:
-    def __init__(self, name, health, attack, defense):
+    def __init__(self, name, health, attack, defense, accuracy):
         self.name = name
         self.health = health # Здоровье
         self.attack = attack # Сила атаки
         self.defense = defense # Защита
+        self.accuracy = accuracy # Точность атаки (0-100)
 
     def take_damage(self, damage):
         damage = random.randint(self.attack - 3, self.attack + 3) # Варьируем урон для реалистичности
@@ -17,8 +18,22 @@ class Unit:
         return self.health > 0
 
     def attack_target(self, target): # Метод для атаки цели
-        print(f"{self.name} атакует {target.name}!")
-        target.take_damage(self.attack)
+        roll = random.randint(1, 100) # Бросок для определения попадания
+        print(f"{self.name} пытается атаковать {target.name} (Бросок: {roll}, Точность: {self.accuracy})")
+        if roll >= self.accuracy: # Если бросок равен или выше точности, атака успешна
+            print(f"{self.name} атакует {target.name}!")
+            target.take_damage(self.attack)
+        else:
+            print(f"{self.name} промахивается по {target.name}!")
+
+    def critical_hit
+        pass
+
+
+
+
+
+        
 
 
 
