@@ -26,9 +26,9 @@ class Skill(Enum):
     RELIGION = ("Religion", Stat.INT) # Религия
 
     # Wisdom (WIS) Мудрость
-    ANIMAL_HANLING = ("Animal Handling", Stat.WIS) # Уход за животными
+    ANIMAL_HANDLING = ("Animal Handling", Stat.WIS) # Уход за животными
     INSIGHT = ("Insight", Stat.WIS) # Проницательность
-    MDICINE = ("Medicine", Stat.WIS) # Медицина
+    MEDICINE = ("Medicine", Stat.WIS) # Медицина
     PERCEPTION = ("Perception", Stat.WIS) # Восприятие
     SURVIVAL = ("Survival", Stat.WIS) # Выживание
 
