@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 import math
 
-# Импортируем наши заготовки
+# Cущности для персонажа, его характеристик, навыков и инвентаря
 from skills import Stat, Skill
 from classes import ClassTemplate
+# Система инвентаря и предметов
+from items import Item, Weapon, Armor, ItemType, EquipmentSlot, InventoryManager
 
 @dataclass
 class PlayerCharacter:
@@ -14,74 +16,99 @@ class PlayerCharacter:
     selected_skills: List[Skill]
     level: int = 1
     
-    # Поля, которые вычисляются автоматически при создании
+    # Поля, вычисляемые автоматически
     max_hp: int = field(init=False)
     current_hp: int = field(init=False)
+    inventory: InventoryManager = field(init=False)
 
     def __post_init__(self):
-        """Этот метод автоматически запускается после создания объекта"""
+        """Инициализация после создания объекта"""
         
-        # 1. Проверяем, правильно ли игрок выбрал навыки
+        # 1. Валидация навыков (твой оригинальный код)
         if not self.character_class.validate_skill_selection(self.selected_skills):
-            raise ValueError(
-                f"Ошибка создания персонажа {self.name}! "
-                f"Класс {self.character_class.name.value} должен выбрать "
-                f"{self.character_class.skills_count} навыка из своего списка."
-            )
+            raise ValueError(f"Ошибка навыков у {self.name}!")
 
-        # 2. Рассчитываем стартовое здоровье (Макс. значение кубика + мод. Телосложения)
+        # 2. Инициализация инвентаря
+        self.inventory = InventoryManager()
+
+        # 3. Рассчитываем HP (1 уровень: max_hit_die + mod)
         con_mod = self.get_stat_modifier(Stat.CON)
-        # На 1 уровне всегда дается максимум ХП
         self.max_hp = self.character_class.hit_die + con_mod 
         self.current_hp = self.max_hp
 
-    @property
-    def proficiency_bonus(self) -> int:
-        """Бонус мастерства зависит от уровня (+2 на 1-4 ур., +3 на 5-8 ур. и т.д.)"""
-        return 2 + (self.level - 1) // 4
+    # --- ЛОГИКА ХАРАКТЕРИСТИК С УЧЕТОМ ЭКИПИРОВКИ ---
+
+    def get_full_stat_value(self, stat: Stat) -> int:
+        """Базовое значение + бонусы от всех надетых колец, брони и т.д."""
+        base_value = self.stats.get(stat, 10)
+        bonuses = self.inventory.get_all_stat_bonuses()
+        return base_value + bonuses.get(stat, 0)
 
     def get_stat_modifier(self, stat: Stat) -> int:
-        """
-        Стандартная формула перевода характеристики в модификатор:
-        (Значение - 10) / 2, с округлением вниз.
-        Например: 15 -> +2, 8 -> -1, 10 -> 0.
-        """
-        return math.floor((self.stats[stat] - 10) / 2)
+        """Итоговый модификатор (например, +3), учитывающий вещи"""
+        full_value = self.get_full_stat_value(stat)
+        return math.floor((full_value - 10) / 2)
 
-    def get_skill_modifier(self, skill: Skill) -> int:
-        """
-        Считает итоговый бонус для броска навыка.
-        """
-        # В твоем skills.py значение навыка — это кортеж ("Имя", Базовый Стат).
-        # Достаем базовый стат под индексом 1.
-        base_stat = skill.value[1]
+    @property
+    def armor_class(self) -> int:
+        """Автоматический расчет КД (AC)"""
+        # База 10 + Ловкость
+        ac = 10 + self.get_stat_modifier(Stat.DEX)
         
-        # Берем модификатор от характеристики (например, от Ловкости для Скрытности)
-        total_bonus = self.get_stat_modifier(base_stat)
-        
-        # Если персонаж владеет этим навыком, добавляем бонус мастерства
-        if skill in self.selected_skills:
-            total_bonus += self.proficiency_bonus
+        # Добавляем бонус от надетой брони (слот BODY)
+        equipped_armor = self.inventory.equipped[EquipmentSlot.BODY]
+        if isinstance(equipped_armor, Armor):
+            ac += equipped_armor.ac_bonus
             
-        return total_bonus
+        return ac
+
+    @property
+    def proficiency_bonus(self) -> int:
+        return 2 + (self.level - 1) // 4
+
+    # --- БОЕВАЯ ЛОГИКА ---
+
+    def get_attack_data(self) -> dict:
+        """Возвращает данные для совершения атаки"""
+        main_weapon = self.inventory.equipped[EquipmentSlot.MAIN_HAND]
+        
+        # Для варвара используем Силу
+        str_mod = self.get_stat_modifier(Stat.STR)
+        
+        if isinstance(main_weapon, Weapon):
+            return {
+                "name": main_weapon.name,
+                "bonus": str_mod + self.proficiency_bonus,
+                "damage": f"{main_weapon.damage_dice} + {str_mod}",
+                "type": main_weapon.damage_type
+            }
+        
+        return {
+            "name": "Кулаки",
+            "bonus": str_mod + self.proficiency_bonus,
+            "damage": f"1 + {str_mod}",
+            "type": "Дробящий"
+        }
+
+    # --- МЕТОДЫ СОСТОЯНИЯ ---
 
     def take_damage(self, amount: int):
-        """Получение урона"""
         self.current_hp = max(0, self.current_hp - amount)
-        print(f"{self.name} получает {amount} урона. Осталось ХП: {self.current_hp}/{self.max_hp}")
+        print(f"-> {self.name} ранен на {amount}. HP: {self.current_hp}/{self.max_hp}")
 
-    def heal(self, amount: int):
-        """Лечение"""
-        self.current_hp = min(self.max_hp, self.current_hp + amount)
-        print(f"{self.name} лечится на {amount}. Текущее ХП: {self.current_hp}/{self.max_hp}")
-        
     def show_character_sheet(self):
-        """Красивый вывод информации о персонаже"""
-        print(f"--- Лист Персонажа: {self.name} ---")
-        print(f"Класс: {self.character_class.name.value} | Уровень: {self.level}")
-        print(f"HP: {self.current_hp}/{self.max_hp} | Бонус мастерства: +{self.proficiency_bonus}")
-        print("\nХарактеристики:")
-        for stat, value in self.stats.items():
+        attack = self.get_attack_data()
+        print(f"\n" + "="*30)
+        print(f"ГЕРОЙ: {self.name} | Уровень: {self.level}")
+        print(f"КЛАСС: {self.character_class.name.value}")
+        print(f"HP: {self.current_hp}/{self.max_hp} | AC: {self.armor_class}")
+        print(f"ОРУЖИЕ: {attack['name']} (Бросок: +{attack['bonus']}, Урон: {attack['damage']})")
+        print("-" * 30)
+        print("ХАРАКТЕРИСТИКИ (с учетом бонусов):")
+        for stat in Stat:
+            val = self.get_full_stat_value(stat)
             mod = self.get_stat_modifier(stat)
-            mod_str = f"+{mod}" if mod >= 0 else str(mod)
-            print(f"  {stat.value}: {value} ({mod_str})")
+            print(f"  {stat.value:15}: {val} ({'+' if mod >= 0 else ''}{mod})")
+        
+        self.inventory.show_inventory()
+        print("="*30 + "\n")
